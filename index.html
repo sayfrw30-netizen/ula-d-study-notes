@@ -192,7 +192,7 @@
     }
 
     .detail-panel.open {
-      max-height: 500px;
+      max-height: 900px;
       opacity: 1;
       margin-top: 1.5rem;
     }
@@ -357,6 +357,144 @@
       font-size: 12px;
       margin-top: 22px;
       margin-bottom: 8px;
+    }
+
+    /* ATOM DIAGRAM */
+
+    .atom-diagram-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+
+    .atom-diagram-wrap svg {
+      width: 100%;
+      max-width: 220px;
+      height: auto;
+    }
+
+    .shell-legend {
+      font-size: 11px;
+      color: #475569;
+      text-align: center;
+    }
+
+    /* ELEMENT DETAIL LAYOUT (self-contained, no Tailwind dependency) */
+
+    .detail-layout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .detail-symbol-box {
+      flex: 0 0 96px;
+      width: 96px;
+      height: 96px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-symbol-box span {
+      font-family: 'Space Mono', monospace;
+      font-size: 34px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .detail-info {
+      flex: 1 1 240px;
+      min-width: 220px;
+    }
+
+    .detail-heading {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .detail-heading .detail-z {
+      font-size: 15px;
+      font-weight: 400;
+      color: #475569;
+      margin-left: 6px;
+    }
+
+    .detail-desc {
+      margin: 6px 0 0;
+      font-size: 13.5px;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    .detail-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 22px;
+      row-gap: 10px;
+      margin-top: 16px;
+      font-size: 13.5px;
+    }
+
+    .detail-stats .full-row {
+      grid-column: 1 / -1;
+    }
+
+    .stat-label {
+      display: block;
+      color: #64748b;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      display: block;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .detail-atom-col {
+      flex: 0 0 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0 auto;
+    }
+
+    .detail-atom-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+
+      .detail-layout {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .detail-stats {
+        text-align: left;
+      }
+
+      .detail-atom-col {
+        order: 3;
+      }
+
     }
 
     /* MOBILE */
@@ -2306,6 +2444,107 @@ const catNames = {
 
 
 /* =========================================================
+   BOHR MODEL ELECTRON SHELL CALCULATION
+   Uses the standard simplified shell-filling rule taught in
+   school chemistry: max capacities 2, 8, 18, 32, 32, 18, 8
+   filled in order for the atomic number (Z = electron count).
+   ========================================================= */
+
+const SHELL_CAPACITY = [2, 8, 18, 32, 32, 18, 8];
+
+function getElectronShells(z) {
+
+  const shells = [];
+
+  let remaining = z;
+
+  for (let i = 0; i < SHELL_CAPACITY.length && remaining > 0; i++) {
+
+    const cap = SHELL_CAPACITY[i];
+
+    const take = Math.min(cap, remaining);
+
+    shells.push(take);
+
+    remaining -= take;
+
+  }
+
+  return shells;
+
+}
+
+
+/* =========================================================
+   BUILD BOHR-MODEL ATOM DIAGRAM (SVG)
+   ========================================================= */
+
+function buildAtomDiagram(el) {
+
+  const shells = getElectronShells(el.z);
+
+  const size = 220;
+
+  const cx = size / 2;
+
+  const cy = size / 2;
+
+  const maxRadius = size / 2 - 14;
+
+  const ringGap =
+    shells.length > 1
+      ? maxRadius / shells.length
+      : maxRadius;
+
+  const nucleusR = 15;
+
+  let svg = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" aria-label="Atomic structure diagram of ${el.name}">`;
+
+  /* Orbit rings */
+
+  shells.forEach((count, idx) => {
+
+    const r = ringGap * (idx + 1);
+
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" />`;
+
+  });
+
+  /* Nucleus */
+
+  svg += `
+    <circle cx="${cx}" cy="${cy}" r="${nucleusR}" fill="#0f172a" />
+    <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff" font-family="Space Mono, monospace">${el.sym}</text>
+  `;
+
+  /* Electrons on each shell, evenly spaced */
+
+  shells.forEach((count, idx) => {
+
+    const r = ringGap * (idx + 1);
+
+    for (let e = 0; e < count; e++) {
+
+      const angle = (2 * Math.PI * e) / count - Math.PI / 2;
+
+      const ex = cx + r * Math.cos(angle);
+
+      const ey = cy + r * Math.sin(angle);
+
+      svg += `<circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="3.4" fill="#2563eb" stroke="#ffffff" stroke-width="0.8" />`;
+
+    }
+
+  });
+
+  svg += `</svg>`;
+
+  return { svg, shells };
+
+}
+
+
+/* =========================================================
    ELEMENT SELECTION
    ========================================================= */
 
@@ -2702,218 +2941,83 @@ function showDetail(el,cell) {
     `detail-panel open rounded-xl p-6 mx-auto max-w-2xl ${catBg[el.cat]}`;
 
 
+  /* Build atomic structure diagram */
+
+  const { svg, shells } = buildAtomDiagram(el);
+
+  const shellLabel = shells.join(", ");
+
+
   /* Insert details */
 
   content.innerHTML = `
 
-    <div
-      class="
-        flex
-        gap-6
-        items-start
-        flex-wrap
-      ">
+    <div class="detail-layout">
 
       <!-- SYMBOL -->
 
-      <div
-        class="
-          flex-shrink-0
-          w-24
-          h-24
-          rounded-lg
-          ${catClass[el.cat]}
-          flex
-          items-center
-          justify-center
-        ">
-
-        <span
-          class="
-            mono
-            text-4xl
-            font-bold
-          ">
-
-          ${el.sym}
-
-        </span>
-
+      <div class="detail-symbol-box ${catClass[el.cat]}">
+        <span>${el.sym}</span>
       </div>
 
 
       <!-- INFORMATION -->
 
-      <div
-        class="
-          flex-1
-          min-w-[200px]
-        ">
+      <div class="detail-info">
 
-        <h3
-          class="
-            text-2xl
-            font-bold
-            text-gray-900
-          ">
-
+        <h3 class="detail-heading">
           ${el.name}
-
-          <span
-            class="
-              text-base
-              font-normal
-              text-gray-700
-            ">
-
-            #${el.z}
-
-          </span>
-
+          <span class="detail-z">#${el.z}</span>
         </h3>
 
-
-        <p
-          class="
-            text-sm
-            text-gray-600
-            mt-1
-          ">
-
+        <p class="detail-desc">
           ${el.desc}
-
         </p>
 
-
-        <div
-          class="
-            grid
-            grid-cols-2
-            gap-x-6
-            gap-y-2
-            mt-4
-            text-sm
-          ">
-
-
-          <!-- ATOMIC MASS -->
+        <div class="detail-stats">
 
           <div>
-
-            <span class="text-gray-500">
-              Atomic Mass
-            </span>
-
-            <br>
-
-            <span
-              class="
-                text-gray-900
-                font-medium
-              ">
-
-              ${el.mass}
-
-            </span>
-
+            <span class="stat-label">Atomic Mass</span>
+            <span class="stat-value">${el.mass}</span>
           </div>
-
-
-          <!-- PHASE -->
 
           <div>
-
-            <span class="text-gray-500">
-              Phase
-            </span>
-
-            <br>
-
-            <span
-              class="
-                text-gray-900
-                font-medium
-              ">
-
-              ${el.phase}
-
-            </span>
-
+            <span class="stat-label">Phase</span>
+            <span class="stat-value">${el.phase}</span>
           </div>
-
-
-          <!-- CATEGORY -->
 
           <div>
-
-            <span class="text-gray-500">
-              Category
-            </span>
-
-            <br>
-
-            <span
-              class="
-                text-gray-900
-                font-medium
-              ">
-
-              ${catNames[el.cat]}
-
-            </span>
-
+            <span class="stat-label">Category</span>
+            <span class="stat-value">${catNames[el.cat]}</span>
           </div>
-
-
-          <!-- DISCOVERED -->
 
           <div>
-
-            <span class="text-gray-500">
-              Discovered
-            </span>
-
-            <br>
-
-            <span
-              class="
-                text-gray-900
-                font-medium
-              ">
-
-              ${el.yr || "Ancient"}
-
-            </span>
-
+            <span class="stat-label">Discovered</span>
+            <span class="stat-value">${el.yr || "Ancient"}</span>
           </div>
 
-
-          <!-- ELECTRON CONFIGURATION -->
-
-          <div
-            class="col-span-2">
-
-            <span class="text-gray-500">
-              Electron Config
-            </span>
-
-            <br>
-
-            <span
-              class="
-                text-gray-900
-                font-medium
-                mono
-                text-xs
-              ">
-
-              ${el.ec}
-
-            </span>
-
+          <div class="full-row">
+            <span class="stat-label">Electron Config</span>
+            <span class="stat-value mono" style="font-size:13px;">${el.ec}</span>
           </div>
 
+        </div>
 
+      </div>
+
+
+      <!-- ATOMIC STRUCTURE DIAGRAM -->
+
+      <div class="detail-atom-col">
+
+        <div class="detail-atom-title">
+          Atomic Structure
+        </div>
+
+        ${svg}
+
+        <div class="shell-legend">
+          Shells (K,L,M...): ${shellLabel}
         </div>
 
       </div>
